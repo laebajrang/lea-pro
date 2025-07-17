@@ -1,0 +1,209 @@
+import json
+import os
+from datetime import datetime
+import pytz
+from typing import Dict, List, Optional, Union
+import logging
+from threading import Lock
+
+class LAESignalLogger:
+    """Advanced logging system for trading signals with thread-safe operations."""
+    
+    def _init_(
+        self,
+        log_path: str = "lae_signal_log.json",
+        max_log_size: int = 1000,
+        backup_count: int = 3,
+        timezone: str = "Asia/Kolkata"
+    ):
+        """
+        Args:
+            log_path: Path to JSON log file
+            max_log_size: Maximum number of logs before rotation
+            backup_count: Number of backup files to keep
+            timezone: Timezone for timestamps
+        """
+        self.log_path = log_path
+        self.max_log_size = max_log_size
+        self.backup_count = backup_count
+        self.timezone = pytz.timezone(timezone)
+        self.lock = Lock()  # Thread safety
+        self.logger = self._setup_logger()
+        
+        # Initialize log file if not exists
+        self._initialize_log_file()
+
+    def _setup_logger(self) -> logging.Logger:
+        """Configure internal logging system."""
+        logger = logging.getLogger("LAESignalLogger")
+        logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        return logger
+
+    def _initialize_log_file(self) -> None:
+        """Initialize log file with empty array if not exists."""
+        with self.lock:
+            if not os.path.exists(self.log_path):
+                try:
+                    with open(self.log_path, 'w') as f:
+                        json.dump([], f, indent=2)
+                    self.logger.info(f"Created new log file at {self.log_path}")
+                except IOError as e:
+                    self.logger.error(f"Failed to initialize log file: {str(e)}")
+                    raise
+
+    def _get_current_time(self) -> str:
+        """Get current timestamp in configured timezone."""
+        return datetime.now(self.timezone).strftime("%Y-%m-%d %H:%M:%S")
+
+    def _rotate_logs(self) -> None:
+        """Rotate logs when reaching maximum size."""
+        try:
+            # Create backup
+            for i in range(self.backup_count, 0, -1):
+                src = f"{self.log_path}.{i-1}" if i > 1 else self.log_path
+                dst = f"{self.log_path}.{i}"
+                if os.path.exists(src):
+                    os.replace(src, dst)
+
+            # Clear main log file
+            with open(self.log_path, 'w') as f:
+                json.dump([], f, indent=2)
+                
+        except Exception as e:
+            self.logger.error(f"Log rotation failed: {str(e)}")
+
+    def log_signal(
+        self,
+        signal: Dict,
+        validate: bool = True,
+        auto_rotate: bool = True
+    ) -> Dict[str, Union[str, int]]:
+        """
+        Log a trading signal to JSON file.
+        
+        Args:
+            signal: Dictionary containing signal data
+            validate: Validate signal structure before logging
+            auto_rotate: Automatically rotate logs when reaching max size
+            
+        Returns:
+            Dictionary with operation status and metadata
+        """
+        if validate and not self._validate_signal(signal):
+            return {"status": "error", "message": "Invalid signal structure"}
+
+        signal["timestamp"] = self._get_current_time()
+        signal["log_id"] = self._generate_log_id(signal["timestamp"])
+
+        with self.lock:
+            try:
+                # Read existing logs
+                with open(self.log_path, 'r') as f:
+                    logs = json.load(f)
+                
+                # Check log rotation
+                if auto_rotate and len(logs) >= self.max_log_size:
+                    self._rotate_logs()
+                    logs = []
+
+                # Append new signal
+                logs.append(signal)
+                
+                # Write back to file
+                with open(self.log_path, 'w') as f:
+                    json.dump(logs, f, indent=2)
+                
+                self.logger.info(f"Logged signal {signal['log_id']}")
+                return {
+                    "status": "success",
+                    "log_id": signal["log_id"],
+                    "total_logs": len(logs),
+                    "file_size": os.path.getsize(self.log_path)
+                }
+                
+            except json.JSONDecodeError as e:
+                self.logger.error(f"JSON decode error: {str(e)}")
+                return {"status": "error", "message": "Corrupted log file"}
+            except IOError as e:
+                self.logger.error(f"File operation error: {str(e)}")
+                return {"status": "error", "message": "File system error"}
+            except Exception as e:
+                self.logger.error(f"Unexpected error: {str(e)}")
+                return {"status": "error", "message": "Unexpected error occurred"}
+
+    def _validate_signal(self, signal: Dict) -> bool:
+        """Validate signal structure meets minimum requirements."""
+        required_fields = {
+            "decision": ["BUY", "SELL"],
+            "confidence": (0, 100),
+            "entry": float,
+            "stop_loss": float,
+            "take_profit": (float, list)
+        }
+        
+        try:
+            for field, valid_types in required_fields.items():
+                if field not in signal:
+                    self.logger.warning(f"Missing required field: {field}")
+                    return False
+                
+                if isinstance(valid_types, tuple):
+                    if not isinstance(signal[field], valid_types):
+                        return False
+                elif isinstance(valid_types, list):
+                    if signal[field] not in valid_types:
+                        return False
+                else:
+                    if not isinstance(signal[field], valid_types):
+                        return False
+            
+            # Additional validation for take_profit
+            if isinstance(signal["take_profit"], list):
+                for tp in signal["take_profit"]:
+                    if not all(k in tp for k in ["level", "weight"]):
+                        return False
+            
+            return True
+            
+        except Exception:
+            return False
+
+    def _generate_log_id(self, timestamp: str) -> str:
+        """Generate unique log ID from timestamp."""
+        return f"SIG-{timestamp.replace(' ', '-').replace(':', '')}"
+
+
+# Example Usage
+if _name_ == "_main_":
+    # Initialize logger with rotation (keeps 3 backups of 100 logs each)
+    logger = LAESignalLogger(
+        log_path="lae_signal_log.json",
+        max_log_size=100,
+        backup_count=3
+    )
+    
+    example_signal = {
+        "decision": "BUY",
+        "confidence": 72.5,
+        "entry": 108200.5,
+        "stop_loss": 107800.0,
+        "take_profit": [
+            {"level": 109200.0, "weight": 0.6},
+            {"level": 109500.0, "weight": 0.4}
+        ],
+        "logic_used": ["SMC", "ChartPattern"],
+        "components": {
+            "smc": {"direction": "BUY", "confidence": 60},
+            "chart": {"pattern": "Hammer", "confidence": 75},
+            "news": {"sentiment": "neutral", "score": 0}
+        },
+        "risk_reward": 2.1
+    }
+
+    # Log the signal
+    result = logger.log_signal(example_signal)
+    print("Log Result:", result)

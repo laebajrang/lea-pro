@@ -1,0 +1,9 @@
+python-telegram-bot==21.0.1
+flask==2.2.5
+pandas==2.2.1
+requests==2.31.0
+fastapi==0.110.2
+uvicorn==0.29.0
+pandas_ta==0.3.14b0
+numpy==1.26.4
+

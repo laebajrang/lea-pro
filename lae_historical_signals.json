@@ -1,0 +1,155 @@
+{
+  "metadata": {
+    "version": "2.1",
+    "generated": "2025-07-15T12:00:00Z",
+    "author": "LAE Trading System",
+    "instrument": "BTC/USD",
+    "timeframe": "4H",
+    "strategy": "SMC_Pro_V3"
+  },
+  "signals": [
+    {
+      "id": "S-20250709-1030-B",
+      "timestamp": "2025-07-09T10:30:00Z",
+      "decision": "BUY",
+      "confidence": 72.5,
+      "levels": {
+        "entry": 108245.50,
+        "stop_loss": 107800.00,
+        "take_profit": [
+          {
+            "level": 109000.00,
+            "weight": 0.6,
+            "type": "primary"
+          },
+          {
+            "level": 109500.00,
+            "weight": 0.4,
+            "type": "secondary"
+          }
+        ]
+      },
+      "risk_metrics": {
+        "risk_reward": 2.1,
+        "risk_percent": 1.5,
+        "position_size": 0.25
+      },
+      "market_context": {
+        "structure": "bullish_breakout",
+        "trend": "up",
+        "volatility": "high"
+      },
+      "components": {
+        "smc": {
+          "liquidity": {
+            "below": true,
+            "zone": 107500.00
+          },
+          "order_block": {
+            "valid": true,
+            "type": "bullish_OB"
+          },
+          "bos": {
+            "confirmed": true,
+            "strength": 0.85
+          }
+        },
+        "technical": {
+          "pattern": {
+            "name": "MorningStar",
+            "confidence": 0.82
+          },
+          "indicators": {
+            "RSI": 42.5,
+            "EMA_cross": "bullish",
+            "Volume": 1.8
+          }
+        },
+        "fundamental": {
+          "news_sentiment": {
+            "score": 68,
+            "trend": "improving"
+          },
+          "events": ["FOMC_Meeting"]
+        }
+      },
+      "validation": {
+        "backtested": true,
+        "win_rate": 0.68,
+        "avg_runner": 1.8
+      }
+    },
+    {
+      "id": "S-20250710-1145-S",
+      "timestamp": "2025-07-10T11:45:00Z",
+      "decision": "SELL",
+      "confidence": 65.3,
+      "levels": {
+        "entry": 110840.00,
+        "stop_loss": 111300.00,
+        "take_profit": [
+          {
+            "level": 110000.00,
+            "weight": 1.0,
+            "type": "full"
+          }
+        ]
+      },
+      "risk_metrics": {
+        "risk_reward": 1.6,
+        "risk_percent": 2.0,
+        "position_size": 0.15
+      },
+      "market_context": {
+        "structure": "bearish_rejection",
+        "trend": "down",
+        "volatility": "medium"
+      },
+      "components": {
+        "smc": {
+          "liquidity": {
+            "above": false,
+            "zone": 111500.00
+          },
+          "order_block": {
+            "valid": false,
+            "type": "broken_bearish"
+          },
+          "bos": {
+            "confirmed": true,
+            "strength": 0.72
+          }
+        },
+        "technical": {
+          "pattern": {
+            "name": "EveningStar",
+            "confidence": 0.78
+          },
+          "indicators": {
+            "RSI": 58.3,
+            "EMA_cross": "bearish",
+            "Volume": 1.2
+          }
+        },
+        "fundamental": {
+          "news_sentiment": {
+            "score": 0,
+            "trend": "neutral"
+          },
+          "events": []
+        }
+      },
+      "validation": {
+        "backtested": true,
+        "win_rate": 0.62,
+        "avg_runner": 1.3
+      }
+    }
+  ],
+  "performance_metrics": {
+    "historical_win_rate": 0.67,
+    "avg_risk_reward": 1.85,
+    "sharpe_ratio": 1.42,
+    "max_drawdown": 12.5
+  }
+}
